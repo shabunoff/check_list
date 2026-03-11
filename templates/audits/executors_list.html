@@ -1,0 +1,100 @@
+﻿{% extends 'base.html' %}
+{% block title %}Респонденты{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Респонденты</h3>
+  {% if can_manage %}
+  <a href="/executors/import" class="btn btn-accent-outline btn-sm">Импорт Excel</a>
+  {% endif %}
+</div>
+
+{% if can_manage %}
+<div class="card mb-3">
+  <div class="card-header">Добавить респондента вручную</div>
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_executor">
+      <div class="col-md-4">{{ add_form.full_name.label_tag }}{{ add_form.full_name }}</div>
+      <div class="col-md-3">{{ add_form.city.label_tag }}{{ add_form.city }}</div>
+      <div class="col-md-2 form-check mt-4">{{ add_form.is_active }} {{ add_form.is_active.label_tag }}</div>
+      <div class="col-md-2"><button class="btn btn-accent" type="submit">Добавить</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="city" class="form-select">
+      <option value="">Все группы</option>
+      {% for city in cities %}
+      <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>{{ city }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-neutral" type="submit">Фильтр</button>
+  </div>
+</form>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="bulk_deactivate">
+
+  {% if can_manage %}
+  <div class="mb-2 d-flex gap-2">
+    <button class="btn btn-outline-danger btn-sm" type="submit">Групповое удаление (деактивировать)</button>
+    <button class="btn btn-danger btn-sm" type="submit" name="action" value="bulk_hard_delete" onclick="return confirm('Удалить выбранных респондентов полностью вместе с аудитами? Действие необратимо.');">Полное удаление (безвозвратно)</button>
+  </div>
+  {% endif %}
+
+  <table class="table table-striped table-sm align-middle">
+    <thead>
+      <tr>
+        {% if can_manage %}<th style="width: 40px;"><input type="checkbox" id="select-all"></th>{% endif %}
+        <th>ФИО</th>
+        <th>Группа</th>
+        <th>Статус</th>
+        <th>Аудитов</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for executor in executors %}
+      <tr>
+        {% if can_manage %}<td><input type="checkbox" name="executor_ids" value="{{ executor.id }}" class="row-check"></td>{% endif %}
+        <td>{{ executor.full_name }}</td>
+        <td>{{ executor.city }}</td>
+        <td>{% if executor.is_active %}Активный{% else %}Неактивный{% endif %}</td>
+        <td>{{ executor.has_audit }}</td>
+        <td><a href="/executors/{{ executor.id }}" class="btn btn-accent-outline btn-sm">Открыть</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="{% if can_manage %}6{% else %}5{% endif %}">Нет данных</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const selectAll = document.getElementById('select-all');
+  if (!selectAll) return;
+  const checkboxes = document.querySelectorAll('.row-check');
+  selectAll.addEventListener('change', function() {
+    checkboxes.forEach((cb) => {
+      cb.checked = selectAll.checked;
+    });
+  });
+})();
+</script>
+{% endblock %}
+
+
+
+
+
+

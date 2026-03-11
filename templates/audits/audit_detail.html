@@ -1,0 +1,117 @@
+﻿{% extends 'base.html' %}
+{% load audits_extras %}
+{% block title %}Аудит{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Аудит: {{ audit.executor.full_name }}</h3>
+  <a href="/executors/{{ audit.executor.id }}" class="btn btn-outline-secondary btn-sm">К респонденту</a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body d-flex justify-content-between align-items-center">
+    <div>
+      <div><strong>Чек-лист:</strong> {{ audit.checklist.title }}</div>
+      <div><strong>Создан:</strong> {{ audit.created_at }}</div>
+    </div>
+    <form method="post" class="d-flex align-items-center gap-2">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="change_status">
+      {{ status_form.status }}
+      <button class="btn btn-accent btn-sm" type="submit">Обновить статус</button>
+    </form>
+  </div>
+</div>
+
+<div id="save-status" class="small mb-2 text-muted">Изменений пока нет</div>
+
+{% for section in sections %}
+<div class="card mb-3">
+  <div class="card-header"><strong>{{ section.title }}</strong></div>
+  <div class="card-body">
+    {% for item in section.items.all %}
+    <div class="border rounded p-3 mb-3">
+      <div class="fw-semibold mb-2">{{ item.text }}</div>
+
+      {% for field in item.fields.all %}
+      <div class="mb-2">
+        <label class="form-label small mb-1">{{ field.title }}</label>
+
+        {% if field.field_type == 'text' %}
+          <textarea class="form-control form-control-sm autosave" rows="2" data-field-id="{{ field.id }}">{{ values|get_item:field.id }}</textarea>
+        {% elif field.field_type == 'number' %}
+          <input type="number" step="any" class="form-control form-control-sm autosave" data-field-id="{{ field.id }}" value="{{ values|get_item:field.id }}">
+        {% elif field.field_type == 'select' %}
+          <select class="form-select form-select-sm autosave" data-field-id="{{ field.id }}">
+            <option value=""></option>
+            {% for option in field.options.all %}
+            <option value="{{ option.value }}" {% if values|get_item:field.id == option.value %}selected{% endif %}>{{ option.value }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div class="small text-muted">Для этого пункта не настроены поля.</div>
+      {% endfor %}
+    </div>
+    {% empty %}
+    <div class="text-muted">В разделе нет пунктов.</div>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-warning">В чек-листе нет разделов.</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const statusEl = document.getElementById('save-status');
+  const csrfToken = '{{ csrf_token }}';
+  let timer = null;
+
+  const setStatus = (text, cls) => {
+    statusEl.textContent = text;
+    statusEl.classList.remove('autosave-ok', 'autosave-wait', 'text-danger', 'text-muted');
+    statusEl.classList.add(cls);
+  };
+
+  const saveField = async (el) => {
+    const fieldId = el.dataset.fieldId;
+    const value = el.value;
+
+    setStatus('Сохранение...', 'autosave-wait');
+
+    const body = new URLSearchParams();
+    body.set('field_id', fieldId);
+    body.set('value', value);
+
+    try {
+      const response = await fetch('/audit/{{ audit.id }}/autosave', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body.toString(),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Ошибка сохранения');
+      }
+      clearTimeout(timer);
+      timer = setTimeout(() => setStatus('Сохранено', 'autosave-ok'), 80);
+    } catch (err) {
+      setStatus('Ошибка сохранения: ' + err.message, 'text-danger');
+    }
+  };
+
+  document.querySelectorAll('.autosave').forEach((el) => {
+    const eventName = (el.tagName === 'SELECT') ? 'change' : 'blur';
+    el.addEventListener(eventName, () => saveField(el));
+  });
+})();
+</script>
+{% endblock %}
+
+

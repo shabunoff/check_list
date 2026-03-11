@@ -1,0 +1,70 @@
+﻿{% extends 'base.html' %}
+{% block title %}Опрос по чек-листу{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Опрос: {{ checklist.title }}</h3>
+  <div class="d-flex gap-2">
+    {% if is_leader %}
+    <a href="/checklists/{{ checklist.id }}/export-min" class="btn btn-accent-outline btn-sm">Экспорт минимум Excel</a>
+    <a href="/checklists/{{ checklist.id }}/export-answers" class="btn btn-accent-outline btn-sm">Экспорт с ответами</a>
+    <a href="/checklists/{{ checklist.id }}" class="btn btn-outline-secondary btn-sm">Конструктор</a>
+    {% endif %}
+    <a href="/survey" class="btn btn-outline-secondary btn-sm">Мои опросы</a>
+  </div>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-md-6 col-lg-5">
+    <label for="employee" class="form-label">Респондент</label>
+    <input type="text" id="employee" name="employee" class="form-control" value="{{ employee_query }}" placeholder="Введите ФИО">
+  </div>
+  <div class="col-md-4 col-lg-3">
+    <label for="status" class="form-label">Статус</label>
+    <select id="status" name="status" class="form-select">
+      <option value="" {% if not status_filter %}selected{% endif %}>Все</option>
+      <option value="not_created" {% if status_filter == 'not_created' %}selected{% endif %}>Не создан</option>
+      <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Черновик</option>
+      <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Завершен</option>
+    </select>
+  </div>
+  <div class="col-md-2 col-lg-2 d-flex gap-2">
+    <button class="btn btn-accent btn-sm" type="submit">Применить</button>
+    <a href="/checklists/{{ checklist.id }}/survey" class="btn btn-outline-secondary btn-sm">Сброс</a>
+  </div>
+</form>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Респондент</th>
+      <th>Группа</th>
+      <th>Менеджер</th>
+      <th>Статус назначения</th>
+      <th>Статус</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for assignment in assignments %}
+    <tr>
+      <td>{{ assignment.executor.full_name }}</td>
+      <td>{{ assignment.executor.city }}</td>
+      <td>{{ assignment.manager.username }}</td>
+      <td>{{ assignment.get_status_display }}</td>
+      <td>{% if assignment.audit %}{{ assignment.audit.get_status_display }}{% else %}Не создан{% endif %}</td>
+      <td>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="start_assigned_audit">
+          <input type="hidden" name="assignment_id" value="{{ assignment.id }}">
+          <button class="btn btn-accent btn-sm" type="submit">{% if assignment.audit %}{% if assignment.audit.status == 'completed' %}Изменить{% else %}Открыть{% endif %}{% else %}Начать{% endif %}</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-muted">Нет назначенных респондентов по этому чек-листу.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

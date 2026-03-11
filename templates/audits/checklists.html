@@ -1,0 +1,85 @@
+﻿{% extends 'base.html' %}
+{% block title %}Чек-листы{% endblock %}
+{% block content %}
+<h3>Чек-листы</h3>
+
+<div class="card mb-4">
+  <div class="card-header">Создать чек-лист вручную</div>
+  <div class="card-body">
+    <form method="post" class="row g-3 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_checklist">
+      <div class="col-12 col-md-6 col-lg-5">{{ form.title.label_tag }}{{ form.title }}</div>
+      <div class="col-12 col-md-3 col-lg-2 form-check mt-md-4">{{ form.is_active }} {{ form.is_active.label_tag }}</div>
+      <div class="col-12 col-md-3 col-lg-2"><button class="btn btn-accent" type="submit">Создать</button></div>
+    </form>
+    <div class="small text-muted mt-2">Импорт чек-листов отключен. Чек-листы создаются только вручную.</div>
+  </div>
+</div>
+
+{% for checklist in checklists %}
+<div class="card mb-3">
+  <div class="card-header">
+    <div class="d-flex flex-column flex-xl-row gap-2 align-items-xl-center">
+      <div class="flex-grow-1">
+        <strong class="d-block">{{ checklist.title }}</strong>
+      </div>
+
+      <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center w-100 w-xl-auto justify-content-xl-end">
+        <span class="badge {% if checklist.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+          {% if checklist.is_active %}Активный{% else %}Неактивный{% endif %}
+        </span>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-xl-end">
+          <a href="/checklists/{{ checklist.id }}/survey" class="btn btn-accent-outline btn-sm">Опрос</a>
+          <a href="/checklists/{{ checklist.id }}/export-min" class="btn btn-accent btn-sm">Экспорт min</a>
+          <a href="/checklists/{{ checklist.id }}/export-answers" class="btn btn-accent btn-sm">Экспорт ответы</a>
+          <a href="/checklists/{{ checklist.id }}" class="btn btn-outline-secondary btn-sm">Конструктор</a>
+
+          <form method="post" class="d-inline m-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="toggle_active">
+            <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+            <button class="btn btn-outline-secondary btn-sm" type="submit">Переключить</button>
+          </form>
+
+          <form method="post" class="d-inline m-0" onsubmit="return confirm('Удалить чек-лист полностью? Это удалит разделы, пункты, назначения, аудиты и ответы.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_checklist">
+            <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Удалить</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body small">
+    <div class="row g-2 mb-2">
+      <div class="col-12 col-sm-6 col-lg-3">Разделов: {{ checklist.sections_count }}</div>
+      <div class="col-12 col-sm-6 col-lg-3">Пунктов: {{ checklist.items_count }}</div>
+      <div class="col-12 col-sm-6 col-lg-3">Полей: {{ checklist.fields_count }}</div>
+      <div class="col-12 col-sm-6 col-lg-3">Назначено: {{ checklist.assignments_count }}</div>
+    </div>
+
+    <div class="border rounded p-2 bg-light-subtle">
+      <div class="d-flex flex-wrap gap-3 mb-2">
+        <span>Завершено: <strong>{{ checklist.completed_count }}</strong> ({{ checklist.completed_percent }}%)</span>
+        <span>Черновиков: <strong>{{ checklist.draft_count }}</strong> ({{ checklist.draft_percent }}%)</span>
+        <span>Не начато: <strong>{{ checklist.not_started_count }}</strong> ({{ checklist.not_started_percent }}%)</span>
+      </div>
+
+      <div class="progress" role="progressbar" aria-label="Динамика статусов" style="height: 10px;">
+        <div class="progress-bar bg-success" style="width: {{ checklist.completed_percent }}%" title="Завершено"></div>
+        <div class="progress-bar" style="width: {{ checklist.draft_percent }}%; background-color: #f59e0b;" title="Черновики"></div>
+        <div class="progress-bar bg-secondary" style="width: {{ checklist.not_started_percent }}%" title="Не начато"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-secondary">Чек-листы отсутствуют.</div>
+{% endfor %}
+{% endblock %}
+
+

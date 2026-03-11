@@ -1,0 +1,88 @@
+﻿{% extends 'base.html' %}
+{% block title %}Респондент{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">{{ executor.full_name }}</h3>
+  <a href="/executors" class="btn btn-outline-secondary btn-sm">Назад</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Данные респондента</div>
+      <div class="card-body">
+        {% if can_manage %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_executor">
+          {{ form.as_p }}
+          <button class="btn btn-accent btn-sm" type="submit">Сохранить</button>
+        </form>
+        <form method="post" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="toggle_active">
+          <button class="btn btn-neutral btn-sm" type="submit">
+            {% if executor.is_active %}Сделать неактивным{% else %}Сделать активным{% endif %}
+          </button>
+        </form>
+        {% else %}
+        <p><strong>Группа:</strong> {{ executor.city }}</p>
+        <p><strong>Статус:</strong> {% if executor.is_active %}Активный{% else %}Неактивный{% endif %}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-header">Создать новый аудит</div>
+      <div class="card-body">
+        {% if executor.is_active %}
+          {% if has_available_checklists %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="start_audit">
+            {{ start_form.as_p }}
+            <button class="btn btn-accent btn-sm" type="submit">Создать аудит</button>
+          </form>
+          {% else %}
+          <p class="text-muted mb-0">Для респондента уже созданы аудиты по всем активным чек-листам.</p>
+          {% endif %}
+        {% else %}
+        <p class="text-muted mb-0">Нельзя создать аудит для неактивного респондента.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Существующие аудиты</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Чек-лист</th>
+              <th>Статус</th>
+              <th>Создан</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for audit in audits %}
+            <tr>
+              <td>{{ audit.checklist.title }}</td>
+              <td>{{ audit.get_status_display }}</td>
+              <td>{{ audit.created_at }}</td>
+              <td><a href="/audit/{{ audit.id }}" class="btn btn-accent-outline btn-sm">Открыть</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted">Аудитов пока нет.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

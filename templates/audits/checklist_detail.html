@@ -1,0 +1,263 @@
+﻿{% extends 'base.html' %}
+{% block title %}Конструктор чек-листа{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Конструктор: {{ checklist.title }}</h3>
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    <a href="/checklists/{{ checklist.id }}/survey" class="btn btn-accent-outline btn-sm">Опрос по чек-листу</a>
+    <a href="/checklists/{{ checklist.id }}/export-min" class="btn btn-accent btn-sm">Экспорт минимум Excel</a>
+    <a href="/checklists/{{ checklist.id }}/export-answers" class="btn btn-accent btn-sm">Экспорт с ответами</a>
+    <a href="/checklists" class="btn btn-outline-secondary btn-sm">Назад к списку</a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Назначения респондентов на опрос</div>
+  <div class="card-body">
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_assignments_bulk">
+
+      <div class="row g-2 align-items-end mb-2">
+        <div class="col-md-4">
+          <label class="form-label">Менеджер</label>
+          <select class="form-select form-select-sm" name="manager_id" required>
+            <option value="">Выберите менеджера</option>
+            {% for manager in managers %}
+            <option value="{{ manager.id }}">{{ manager.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8 d-flex gap-2">
+          <button type="button" id="select-all-executors" class="btn btn-outline-secondary btn-sm">Выбрать всех</button>
+          <button type="button" id="clear-all-executors" class="btn btn-outline-secondary btn-sm">Снять все</button>
+          <button class="btn btn-accent btn-sm" type="submit">Назначить выбранных</button>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 44px;"><input type="checkbox" id="master-check"></th>
+              <th>Респондент</th>
+              <th>Группа</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for executor in available_executors %}
+            <tr>
+              <td><input type="checkbox" class="executor-check" name="executor_ids" value="{{ executor.id }}"></td>
+              <td>{{ executor.full_name }}</td>
+              <td>{{ executor.city }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted">Нет доступных респондентов для назначения.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </form>
+
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Респондент</th>
+          <th>Менеджер</th>
+          <th>Статус</th>
+          <th>Аудит</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for assignment in assignments %}
+        <tr>
+          <td>{{ assignment.executor.full_name }}</td>
+          <td>{{ assignment.manager.username }}</td>
+          <td>{{ assignment.get_status_display }}</td>
+          <td>{% if assignment.audit %}<a href="/audit/{{ assignment.audit.id }}">Открыть</a>{% else %}-{% endif %}</td>
+          <td>
+            <form method="post" class="d-inline" onsubmit="return confirm('Удалить назначение?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_assignment">
+              <input type="hidden" name="assignment_id" value="{{ assignment.id }}">
+              <button class="btn btn-outline-danger btn-sm" type="submit">Удалить</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted">Пока нет назначений.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Добавить раздел</div>
+  <div class="card-body">
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_section">
+      <div class="col-md-6">{{ section_form.title.label_tag }}{{ section_form.title }}</div>
+      <div class="col-md-2">{{ section_form.order.label_tag }}{{ section_form.order }}</div>
+      <div class="col-md-2"><button class="btn btn-accent btn-sm" type="submit">Добавить раздел</button></div>
+    </form>
+  </div>
+</div>
+
+{% for section in sections %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong>{{ section.order }}. {{ section.title }}</strong>
+    <form method="post" class="d-inline" onsubmit="return confirm('Удалить раздел вместе со всеми пунктами и полями?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete_section">
+      <input type="hidden" name="section_id" value="{{ section.id }}">
+      <button class="btn btn-outline-danger btn-sm" type="submit">Удалить раздел</button>
+    </form>
+  </div>
+  <div class="card-body">
+    <div class="card mb-3">
+      <div class="card-header">Добавить пункт в раздел</div>
+      <div class="card-body">
+        <form method="post" class="row g-2 align-items-end">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_item">
+          <input type="hidden" name="section_id" value="{{ section.id }}">
+          <div class="col-md-7">{{ item_form.text.label_tag }}{{ item_form.text }}</div>
+          <div class="col-md-2">{{ item_form.order.label_tag }}{{ item_form.order }}</div>
+          <div class="col-md-2"><button class="btn btn-accent btn-sm" type="submit">Добавить пункт</button></div>
+        </form>
+      </div>
+    </div>
+
+    {% for item in section.items.all %}
+    <div class="border rounded p-2 mb-3">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <strong>{{ item.order }}. {{ item.text }}</strong>
+        </div>
+        <form method="post" class="d-inline" onsubmit="return confirm('Удалить пункт вместе с полями?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_item">
+          <input type="hidden" name="item_id" value="{{ item.id }}">
+          <button class="btn btn-outline-danger btn-sm" type="submit">Удалить пункт</button>
+        </form>
+      </div>
+
+      <div class="card mb-2">
+        <div class="card-header">Добавить поле к пункту</div>
+        <div class="card-body">
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_field">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
+            <div class="col-md-4">{{ field_form.title.label_tag }}{{ field_form.title }}</div>
+            <div class="col-md-3">{{ field_form.field_type.label_tag }}{{ field_form.field_type }}</div>
+            <div class="col-md-2">{{ field_form.order.label_tag }}{{ field_form.order }}</div>
+            <div class="col-md-2"><button class="btn btn-accent btn-sm" type="submit">Добавить поле</button></div>
+          </form>
+        </div>
+      </div>
+
+      {% for field in item.fields.all %}
+      <div class="border rounded p-2 mb-2 bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+          <div><strong>{{ field.order }}. {{ field.title }}</strong> <span class="text-muted">({{ field.get_field_type_display }})</span></div>
+          <form method="post" class="d-inline" onsubmit="return confirm('Удалить поле?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_field">
+            <input type="hidden" name="field_id" value="{{ field.id }}">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Удалить поле</button>
+          </form>
+        </div>
+
+        {% if field.field_type == 'select' %}
+        <div class="mt-2">
+          <div class="small text-muted mb-1">Опции:</div>
+          {% for option in field.options.all %}
+            <div class="d-flex align-items-center justify-content-between border rounded p-1 mb-1 bg-white">
+              <span>{{ option.order }}. {{ option.value }}</span>
+              <form method="post" class="d-inline" onsubmit="return confirm('Удалить опцию?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_option">
+                <input type="hidden" name="option_id" value="{{ option.id }}">
+                <button class="btn btn-outline-danger btn-sm" type="submit">Удалить</button>
+              </form>
+            </div>
+          {% empty %}
+            <div class="small text-muted">Нет опций</div>
+          {% endfor %}
+
+          <form method="post" class="row g-2 align-items-end mt-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_option">
+            <input type="hidden" name="field_id" value="{{ field.id }}">
+            <div class="col-md-6">{{ option_form.value.label_tag }}{{ option_form.value }}</div>
+            <div class="col-md-2">{{ option_form.order.label_tag }}{{ option_form.order }}</div>
+            <div class="col-md-2"><button class="btn btn-accent-outline btn-sm" type="submit">Добавить опцию</button></div>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div class="small text-muted">У пункта пока нет полей.</div>
+      {% endfor %}
+    </div>
+    {% empty %}
+    <div class="text-muted">В разделе пока нет пунктов.</div>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-warning">Добавьте первый раздел.</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const master = document.getElementById('master-check');
+  const selectAllBtn = document.getElementById('select-all-executors');
+  const clearAllBtn = document.getElementById('clear-all-executors');
+  const checks = () => Array.from(document.querySelectorAll('.executor-check'));
+
+  const syncMaster = () => {
+    const all = checks();
+    if (!master || all.length === 0) return;
+    const checkedCount = all.filter((c) => c.checked).length;
+    master.checked = checkedCount === all.length;
+    master.indeterminate = checkedCount > 0 && checkedCount < all.length;
+  };
+
+  if (master) {
+    master.addEventListener('change', () => {
+      checks().forEach((c) => { c.checked = master.checked; });
+      syncMaster();
+    });
+  }
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      checks().forEach((c) => { c.checked = true; });
+      syncMaster();
+    });
+  }
+
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      checks().forEach((c) => { c.checked = false; });
+      syncMaster();
+    });
+  }
+
+  checks().forEach((c) => c.addEventListener('change', syncMaster));
+  syncMaster();
+})();
+</script>
+{% endblock %}
+
+
+
+

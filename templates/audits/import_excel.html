@@ -1,0 +1,12 @@
+﻿{% extends 'base.html' %}
+{% block title %}Импорт{% endblock %}
+{% block content %}
+<h3>{{ title }}</h3>
+<form method="post" enctype="multipart/form-data" class="card card-body" style="max-width: 640px;">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-accent" type="submit">Загрузить</button>
+</form>
+{% endblock %}
+
+

@@ -1,0 +1,18 @@
+﻿{% extends 'base.html' %}
+{% block title %}Отчеты{% endblock %}
+{% block content %}
+<h3>Отчеты и прогресс</h3>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card card-body"><strong>Всего респондентов:</strong> {{ total }}</div></div>
+  <div class="col-md-4"><div class="card card-body"><strong>Прошли аудит:</strong> {{ passed }}</div></div>
+  <div class="col-md-4"><div class="card card-body"><strong>Осталось:</strong> {{ remaining }}</div></div>
+</div>
+
+<div class="d-flex gap-2">
+  <a href="/reports/export/matrix" class="btn btn-accent">Экспорт 1 (матрица)</a>
+  <a href="/reports/export/rows" class="btn btn-accent-outline">Экспорт 2 (по пунктам)</a>
+</div>
+{% endblock %}
+
+

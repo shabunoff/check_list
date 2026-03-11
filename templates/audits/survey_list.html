@@ -1,0 +1,30 @@
+﻿{% extends 'base.html' %}
+{% block title %}Мои опросы{% endblock %}
+{% block content %}
+<h3>Мои опросы</h3>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Чек-лист</th>
+      <th>Назначено</th>
+      <th>Завершено</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for checklist in checklists %}
+    <tr>
+      <td>{{ checklist.title }}</td>
+      <td>{{ checklist.total_assigned }}</td>
+      <td>{{ checklist.completed_assigned }}</td>
+      <td><a href="/checklists/{{ checklist.id }}/survey" class="btn btn-accent-outline btn-sm">Открыть</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="text-muted">У вас пока нет назначений.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+
