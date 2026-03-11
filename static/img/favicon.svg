@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="favRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF2A2A"/>
+      <stop offset="100%" stop-color="#C20000"/>
+    </linearGradient>
+  </defs>
+  
+  <rect x="4" y="6" width="22" height="22" rx="6" fill="#1B1E28"/>
+  
+  <path d="M 6 18 L 12 24 L 28 6" 
+        fill="none" 
+        stroke="url(#favRed)" 
+        stroke-width="5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+</svg>
