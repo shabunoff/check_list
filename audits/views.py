@@ -1,7 +1,7 @@
 ﻿from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.db.transaction import atomic
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -290,6 +290,47 @@ def checklist_detail(request, checklist_id):
                 messages.success(request, 'Раздел добавлен')
                 return redirect('checklist_detail', checklist_id=checklist.id)
 
+        elif action == 'edit_section':
+            section = get_object_or_404(ChecklistSection, pk=request.POST.get('section_id'), checklist=checklist)
+            section_form = ChecklistSectionForm(request.POST, instance=section)
+            if section_form.is_valid():
+                section_form.save()
+                messages.success(request, 'Раздел обновлен')
+                return redirect('checklist_detail', checklist_id=checklist.id)
+
+        elif action == 'copy_section':
+            source_section = get_object_or_404(ChecklistSection, pk=request.POST.get('section_id'), checklist=checklist)
+            with atomic():
+                next_order = (checklist.sections.aggregate(max_order=Max('order')).get('max_order') or 0) + 10
+                new_section = ChecklistSection.objects.create(
+                    checklist=checklist,
+                    title=f'{source_section.title} (копия)',
+                    order=next_order,
+                )
+
+                for src_item in source_section.items.prefetch_related('fields__options').all().order_by('order', 'id'):
+                    new_item = ChecklistItem.objects.create(
+                        section=new_section,
+                        text=src_item.text,
+                        order=src_item.order,
+                    )
+                    for src_field in src_item.fields.all().order_by('order', 'id'):
+                        new_field = ChecklistField.objects.create(
+                            item=new_item,
+                            title=src_field.title,
+                            field_type=src_field.field_type,
+                            order=src_field.order,
+                        )
+                        for src_option in src_field.options.all().order_by('order', 'id'):
+                            ChecklistFieldOption.objects.create(
+                                field=new_field,
+                                value=src_option.value,
+                                order=src_option.order,
+                            )
+
+            messages.success(request, 'Раздел скопирован вместе с пунктами и полями')
+            return redirect('checklist_detail', checklist_id=checklist.id)
+
         elif action == 'add_item':
             section = get_object_or_404(ChecklistSection, pk=request.POST.get('section_id'), checklist=checklist)
             item_form = ChecklistItemForm(request.POST)
@@ -300,6 +341,43 @@ def checklist_detail(request, checklist_id):
                 messages.success(request, 'Пункт добавлен')
                 return redirect('checklist_detail', checklist_id=checklist.id)
 
+        elif action == 'edit_item':
+            item = get_object_or_404(ChecklistItem, pk=request.POST.get('item_id'), section__checklist=checklist)
+            item_form = ChecklistItemForm(request.POST, instance=item)
+            if item_form.is_valid():
+                item_form.save()
+                messages.success(request, 'Пункт обновлен')
+                return redirect('checklist_detail', checklist_id=checklist.id)
+
+        elif action == 'copy_item':
+            source_item = get_object_or_404(ChecklistItem, pk=request.POST.get('item_id'), section__checklist=checklist)
+            target_section = get_object_or_404(ChecklistSection, pk=request.POST.get('target_section_id'), checklist=checklist)
+
+            with atomic():
+                next_order = (target_section.items.aggregate(max_order=Max('order')).get('max_order') or 0) + 10
+                new_item = ChecklistItem.objects.create(
+                    section=target_section,
+                    text=f'{source_item.text} (копия)',
+                    order=next_order,
+                )
+
+                for src_field in source_item.fields.prefetch_related('options').all().order_by('order', 'id'):
+                    new_field = ChecklistField.objects.create(
+                        item=new_item,
+                        title=src_field.title,
+                        field_type=src_field.field_type,
+                        order=src_field.order,
+                    )
+                    for src_option in src_field.options.all().order_by('order', 'id'):
+                        ChecklistFieldOption.objects.create(
+                            field=new_field,
+                            value=src_option.value,
+                            order=src_option.order,
+                        )
+
+            messages.success(request, 'Пункт скопирован вместе с полями')
+            return redirect('checklist_detail', checklist_id=checklist.id)
+
         elif action == 'add_field':
             item = get_object_or_404(ChecklistItem, pk=request.POST.get('item_id'), section__checklist=checklist)
             field_form = ChecklistFieldForm(request.POST)
@@ -308,6 +386,14 @@ def checklist_detail(request, checklist_id):
                 field.item = item
                 field.save()
                 messages.success(request, 'Поле добавлено')
+                return redirect('checklist_detail', checklist_id=checklist.id)
+
+        elif action == 'edit_field':
+            field = get_object_or_404(ChecklistField, pk=request.POST.get('field_id'), item__section__checklist=checklist)
+            field_form = ChecklistFieldForm(request.POST, instance=field)
+            if field_form.is_valid():
+                field_form.save()
+                messages.success(request, 'Поле обновлено')
                 return redirect('checklist_detail', checklist_id=checklist.id)
 
         elif action == 'add_option':
@@ -406,6 +492,7 @@ def checklist_detail(request, checklist_id):
             'assignments': assignments,
             'available_executors': available_executors,
             'managers': managers,
+            'field_type_choices': ChecklistField.TYPE_CHOICES,
             'section_form': ChecklistSectionForm(initial={'order': 10}),
             'item_form': ChecklistItemForm(initial={'order': 10}),
             'field_form': ChecklistFieldForm(initial={'order': 10, 'field_type': ChecklistField.TYPE_TEXT}),
@@ -605,6 +692,7 @@ def export_rows(request):
     )
     response['Content-Disposition'] = 'attachment; filename="audit_rows.xlsx"'
     return response
+
 
 
 

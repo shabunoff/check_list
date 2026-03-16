@@ -22,45 +22,75 @@
   </div>
 </div>
 
-<div id="save-status" class="small mb-2 text-muted">Изменений пока нет</div>
-
-{% for section in sections %}
-<div class="card mb-3">
-  <div class="card-header"><strong>{{ section.title }}</strong></div>
-  <div class="card-body">
-    {% for item in section.items.all %}
-    <div class="border rounded p-3 mb-3">
-      <div class="fw-semibold mb-2">{{ item.text }}</div>
-
-      {% for field in item.fields.all %}
-      <div class="mb-2">
-        <label class="form-label small mb-1">{{ field.title }}</label>
-
-        {% if field.field_type == 'text' %}
-          <textarea class="form-control form-control-sm autosave" rows="2" data-field-id="{{ field.id }}">{{ values|get_item:field.id }}</textarea>
-        {% elif field.field_type == 'number' %}
-          <input type="number" step="any" class="form-control form-control-sm autosave" data-field-id="{{ field.id }}" value="{{ values|get_item:field.id }}">
-        {% elif field.field_type == 'select' %}
-          <select class="form-select form-select-sm autosave" data-field-id="{{ field.id }}">
-            <option value=""></option>
-            {% for option in field.options.all %}
-            <option value="{{ option.value }}" {% if values|get_item:field.id == option.value %}selected{% endif %}>{{ option.value }}</option>
-            {% endfor %}
-          </select>
-        {% endif %}
-      </div>
-      {% empty %}
-      <div class="small text-muted">Для этого пункта не настроены поля.</div>
-      {% endfor %}
-    </div>
-    {% empty %}
-    <div class="text-muted">В разделе нет пунктов.</div>
-    {% endfor %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <div id="save-status" class="small text-muted">Изменений пока нет</div>
+  <div class="d-flex gap-2">
+    <button id="expand-all" type="button" class="btn btn-neutral btn-sm">Развернуть все</button>
+    <button id="collapse-all" type="button" class="btn btn-neutral btn-sm">Свернуть все</button>
   </div>
 </div>
-{% empty %}
-<div class="alert alert-warning">В чек-листе нет разделов.</div>
-{% endfor %}
+
+<div class="accordion" id="audit-sections-accordion">
+  {% for section in sections %}
+  <div class="accordion-item mb-2">
+    <h2 class="accordion-header" id="section-heading-{{ section.id }}">
+      <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#section-collapse-{{ section.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="section-collapse-{{ section.id }}">
+        <span class="fw-semibold">Раздел {{ forloop.counter }}: {{ section.title }}</span>
+        <span class="badge text-bg-light ms-2">Пунктов: {{ section.items.all|length }}</span>
+      </button>
+    </h2>
+    <div id="section-collapse-{{ section.id }}" class="accordion-collapse collapse audit-collapse {% if forloop.first %}show{% endif %}" aria-labelledby="section-heading-{{ section.id }}">
+      <div class="accordion-body">
+        {% if section.items.all %}
+        <div class="accordion" id="items-accordion-{{ section.id }}">
+          {% for item in section.items.all %}
+          <div class="accordion-item mb-2 border rounded">
+            <h2 class="accordion-header" id="item-heading-{{ item.id }}">
+              <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#item-collapse-{{ item.id }}" aria-expanded="false" aria-controls="item-collapse-{{ item.id }}">
+                <span class="fw-semibold">Пункт {{ item.order }}: {{ item.text|truncatechars:120 }}</span>
+                <span class="badge text-bg-light ms-2">Полей: {{ item.fields.all|length }}</span>
+              </button>
+            </h2>
+            <div id="item-collapse-{{ item.id }}" class="accordion-collapse collapse audit-collapse" aria-labelledby="item-heading-{{ item.id }}">
+              <div class="accordion-body pt-2">
+                {% for field in item.fields.all %}
+                <div class="border rounded p-2 mb-2 bg-white">
+                  <div class="small text-secondary opacity-75 mb-1">
+                    Раздел: {{ section.title }} | Пункт: {{ item.text|truncatechars:100 }}
+                  </div>
+                  <label class="form-label small mb-1">{{ field.title }}</label>
+
+                  {% if field.field_type == 'text' %}
+                    <textarea class="form-control form-control-sm autosave" rows="2" data-field-id="{{ field.id }}">{{ values|get_item:field.id }}</textarea>
+                  {% elif field.field_type == 'number' %}
+                    <input type="number" step="any" class="form-control form-control-sm autosave" data-field-id="{{ field.id }}" value="{{ values|get_item:field.id }}">
+                  {% elif field.field_type == 'select' %}
+                    <select class="form-select form-select-sm autosave" data-field-id="{{ field.id }}">
+                      <option value=""></option>
+                      {% for option in field.options.all %}
+                      <option value="{{ option.value }}" {% if values|get_item:field.id == option.value %}selected{% endif %}>{{ option.value }}</option>
+                      {% endfor %}
+                    </select>
+                  {% endif %}
+                </div>
+                {% empty %}
+                <div class="small text-muted">Для этого пункта не настроены поля.</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted">В разделе нет пунктов.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="alert alert-warning">В чек-листе нет разделов.</div>
+  {% endfor %}
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -110,8 +140,29 @@
     const eventName = (el.tagName === 'SELECT') ? 'change' : 'blur';
     el.addEventListener(eventName, () => saveField(el));
   });
+
+  const expandAllBtn = document.getElementById('expand-all');
+  const collapseAllBtn = document.getElementById('collapse-all');
+  const collapseNodes = document.querySelectorAll('.audit-collapse');
+
+  const toggleAll = (show) => {
+    collapseNodes.forEach((node) => {
+      const instance = bootstrap.Collapse.getOrCreateInstance(node, { toggle: false });
+      if (show) {
+        instance.show();
+      } else {
+        instance.hide();
+      }
+    });
+  };
+
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener('click', () => toggleAll(true));
+  }
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener('click', () => toggleAll(false));
+  }
 })();
 </script>
 {% endblock %}
-
 
