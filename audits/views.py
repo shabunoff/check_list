@@ -1,4 +1,4 @@
-﻿from django.contrib import messages
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Max, Q
@@ -93,11 +93,40 @@ def executors_list(request):
         add_form = ExecutorForm(initial={'is_active': True})
 
     city = request.GET.get('city', '').strip()
+    query = request.GET.get('q', '').strip()
+    sort = request.GET.get('sort', 'full_name_asc').strip()
+
     executors = Executor.objects.all().annotate(has_audit=Count('audits'))
     if city:
         executors = executors.filter(city=city)
+    if query:
+        executors = executors.filter(full_name__icontains=query)
+
+    sort_map = {
+        'full_name_asc': ['full_name', 'id'],
+        'full_name_desc': ['-full_name', '-id'],
+        'group_asc': ['city', 'full_name', 'id'],
+        'group_desc': ['-city', 'full_name', 'id'],
+        'status_active_first': ['-is_active', 'full_name', 'id'],
+        'status_inactive_first': ['is_active', 'full_name', 'id'],
+        'audits_desc': ['-has_audit', 'full_name', 'id'],
+        'audits_asc': ['has_audit', 'full_name', 'id'],
+    }
+    if sort not in sort_map:
+        sort = 'full_name_asc'
+    executors = executors.order_by(*sort_map[sort])
 
     cities = Executor.objects.values_list('city', flat=True).distinct().order_by('city')
+    sort_options = [
+        ('full_name_asc', 'ФИО А-Я'),
+        ('full_name_desc', 'ФИО Я-А'),
+        ('group_asc', 'Группа А-Я'),
+        ('group_desc', 'Группа Я-А'),
+        ('status_active_first', 'Статус: активные сверху'),
+        ('status_inactive_first', 'Статус: неактивные сверху'),
+        ('audits_desc', 'Аудитов: больше сверху'),
+        ('audits_asc', 'Аудитов: меньше сверху'),
+    ]
 
     return render(
         request,
@@ -106,6 +135,9 @@ def executors_list(request):
             'executors': executors,
             'cities': cities,
             'selected_city': city,
+            'search_query': query,
+            'selected_sort': sort,
+            'sort_options': sort_options,
             'can_manage': can_manage,
             'add_form': add_form,
         },
@@ -229,6 +261,67 @@ def checklists_page(request):
             messages.success(request, f'Чек-лист "{checklist_title}" удален полностью')
             return redirect('checklists_page')
 
+        elif action == 'rename_checklist':
+            checklist = get_object_or_404(Checklist, pk=request.POST.get('checklist_id'))
+            new_title = (request.POST.get('title') or '').strip()
+            if not new_title:
+                messages.error(request, 'Введите название чек-листа')
+                return redirect('checklists_page')
+
+            exists = Checklist.objects.exclude(pk=checklist.pk).filter(title__iexact=new_title).exists()
+            if exists:
+                messages.error(request, f'Чек-лист с названием "{new_title}" уже существует')
+                return redirect('checklists_page')
+
+            checklist.title = new_title
+            checklist.save(update_fields=['title'])
+            messages.success(request, 'Название чек-листа обновлено')
+            return redirect('checklists_page')
+
+        elif action == 'copy_checklist':
+            source = get_object_or_404(
+                Checklist.objects.prefetch_related('sections__items__fields__options'),
+                pk=request.POST.get('checklist_id'),
+            )
+
+            base_title = f'{source.title} (копия)'
+            candidate = base_title
+            index = 2
+            while Checklist.objects.filter(title__iexact=candidate).exists():
+                candidate = f'{base_title} {index}'
+                index += 1
+
+            with atomic():
+                copied = Checklist.objects.create(title=candidate, is_active=source.is_active)
+                for src_section in source.sections.all().order_by('order', 'id'):
+                    new_section = ChecklistSection.objects.create(
+                        checklist=copied,
+                        title=src_section.title,
+                        order=src_section.order,
+                    )
+                    for src_item in src_section.items.all().order_by('order', 'id'):
+                        new_item = ChecklistItem.objects.create(
+                            section=new_section,
+                            text=src_item.text,
+                            order=src_item.order,
+                        )
+                        for src_field in src_item.fields.all().order_by('order', 'id'):
+                            new_field = ChecklistField.objects.create(
+                                item=new_item,
+                                title=src_field.title,
+                                field_type=src_field.field_type,
+                                order=src_field.order,
+                            )
+                            for src_option in src_field.options.all().order_by('order', 'id'):
+                                ChecklistFieldOption.objects.create(
+                                    field=new_field,
+                                    value=src_option.value,
+                                    order=src_option.order,
+                                )
+
+            messages.success(request, f'Чек-лист скопирован: "{copied.title}"')
+            return redirect('checklist_detail', checklist_id=copied.id)
+
         else:
             form = ChecklistForm(initial={'is_active': True})
     else:
@@ -270,7 +363,6 @@ def checklists_page(request):
             'form': form,
         },
     )
-
 
 @manager_required
 def checklist_detail(request, checklist_id):

@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block title %}Респонденты{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -24,8 +24,13 @@
 </div>
 {% endif %}
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-auto">
+<form method="get" class="row g-2 mb-3 align-items-end">
+  <div class="col-12 col-md-4">
+    <label class="form-label">Поиск по респонденту</label>
+    <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Введите ФИО">
+  </div>
+  <div class="col-12 col-md-3">
+    <label class="form-label">Группа</label>
     <select name="city" class="form-select">
       <option value="">Все группы</option>
       {% for city in cities %}
@@ -33,8 +38,9 @@
       {% endfor %}
     </select>
   </div>
-  <div class="col-auto">
+  <div class="col-12 col-md-3 d-flex gap-2">
     <button class="btn btn-neutral" type="submit">Фильтр</button>
+    <a href="/executors" class="btn btn-outline-secondary">Сброс</a>
   </div>
 </form>
 
@@ -53,10 +59,42 @@
     <thead>
       <tr>
         {% if can_manage %}<th style="width: 40px;"><input type="checkbox" id="select-all"></th>{% endif %}
-        <th>ФИО</th>
-        <th>Группа</th>
-        <th>Статус</th>
-        <th>Аудитов</th>
+        <th>
+          {% if selected_sort == 'full_name_asc' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=full_name_desc">ФИО ▲</a>
+          {% elif selected_sort == 'full_name_desc' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=full_name_asc">ФИО ▼</a>
+          {% else %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=full_name_asc">ФИО</a>
+          {% endif %}
+        </th>
+        <th>
+          {% if selected_sort == 'group_asc' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=group_desc">Группа ▲</a>
+          {% elif selected_sort == 'group_desc' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=group_asc">Группа ▼</a>
+          {% else %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=group_asc">Группа</a>
+          {% endif %}
+        </th>
+        <th>
+          {% if selected_sort == 'status_active_first' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=status_inactive_first">Статус ▲</a>
+          {% elif selected_sort == 'status_inactive_first' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=status_active_first">Статус ▼</a>
+          {% else %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=status_active_first">Статус</a>
+          {% endif %}
+        </th>
+        <th>
+          {% if selected_sort == 'audits_asc' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=audits_desc">Аудитов ▲</a>
+          {% elif selected_sort == 'audits_desc' %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=audits_asc">Аудитов ▼</a>
+          {% else %}
+          <a class="link-dark text-decoration-none" href="?q={{ search_query|urlencode }}&city={{ selected_city|urlencode }}&sort=audits_desc">Аудитов</a>
+          {% endif %}
+        </th>
         <th></th>
       </tr>
     </thead>
@@ -92,9 +130,3 @@
 })();
 </script>
 {% endblock %}
-
-
-
-
-
-

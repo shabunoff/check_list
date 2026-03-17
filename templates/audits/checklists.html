@@ -21,8 +21,9 @@
 <div class="card mb-3">
   <div class="card-header">
     <div class="d-flex flex-column flex-xl-row gap-2 align-items-xl-center">
-      <div class="flex-grow-1">
-        <strong class="d-block">{{ checklist.title }}</strong>
+      <div class="flex-grow-1 d-flex align-items-center gap-2">
+        <strong class="d-block mb-0">{{ checklist.title }}</strong>
+        <button type="button" class="btn btn-outline-secondary btn-sm js-toggle-rename" data-target="rename-form-{{ checklist.id }}" title="Переименовать">&#9998;</button>
       </div>
 
       <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-center w-100 w-xl-auto justify-content-xl-end">
@@ -35,6 +36,13 @@
           <a href="/checklists/{{ checklist.id }}/export-min" class="btn btn-accent btn-sm">Экспорт min</a>
           <a href="/checklists/{{ checklist.id }}/export-answers" class="btn btn-accent btn-sm">Экспорт ответы</a>
           <a href="/checklists/{{ checklist.id }}" class="btn btn-outline-secondary btn-sm">Конструктор</a>
+
+          <form method="post" class="d-inline m-0" onsubmit="return confirm('Создать копию чек-листа со всеми разделами, пунктами и полями?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="copy_checklist">
+            <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+            <button class="btn btn-outline-secondary btn-sm" type="submit">Копировать</button>
+          </form>
 
           <form method="post" class="d-inline m-0">
             {% csrf_token %}
@@ -55,6 +63,21 @@
   </div>
 
   <div class="card-body small">
+    <form id="rename-form-{{ checklist.id }}" method="post" class="row g-2 align-items-end mb-3 d-none">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="rename_checklist">
+      <input type="hidden" name="checklist_id" value="{{ checklist.id }}">
+      <div class="col-12 col-md-6 col-lg-5">
+        <input type="text" name="title" class="form-control form-control-sm" value="{{ checklist.title }}" required>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-accent-outline btn-sm" type="submit">Сохранить</button>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-secondary btn-sm js-cancel-rename" type="button" data-target="rename-form-{{ checklist.id }}">Отмена</button>
+      </div>
+    </form>
+
     <div class="row g-2 mb-2">
       <div class="col-12 col-sm-6 col-lg-3">Разделов: {{ checklist.sections_count }}</div>
       <div class="col-12 col-sm-6 col-lg-3">Пунктов: {{ checklist.items_count }}</div>
@@ -82,4 +105,28 @@
 {% endfor %}
 {% endblock %}
 
+{% block scripts %}
+<script>
+(function() {
+  document.querySelectorAll('.js-toggle-rename').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const form = document.getElementById(btn.dataset.target);
+      if (!form) return;
+      form.classList.toggle('d-none');
+      if (!form.classList.contains('d-none')) {
+        const input = form.querySelector('input[name="title"]');
+        if (input) input.focus();
+      }
+    });
+  });
 
+  document.querySelectorAll('.js-cancel-rename').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const form = document.getElementById(btn.dataset.target);
+      if (!form) return;
+      form.classList.add('d-none');
+    });
+  });
+})();
+</script>
+{% endblock %}
